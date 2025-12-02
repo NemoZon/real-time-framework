@@ -1,5 +1,12 @@
 import type { RealtimeKernel } from '../core/realtimeKernel.js';
-import type { ClientContext, HandlerToolkit, RealtimeMessage } from '../types/index.js';
+import type {
+  ClientContext,
+  HandlerToolkit,
+  KernelEventMap,
+  OutboundMessage,
+  RealtimeEventMap,
+  RealtimeMessage
+} from '../types/index.js';
 import { Logger } from '../utils/logger.js';
 
 export interface WebRTCSignalingOptions {
@@ -24,7 +31,7 @@ export class WebRTCSignalingBridge {
     this.logger = new Logger(`signaling:${this.namespace}`);
   }
 
-  attach(kernel: RealtimeKernel) {
+  attach<Events extends RealtimeEventMap>(kernel: RealtimeKernel<Events>) {
     const offerChannel = `${this.namespace}:offer`;
     const answerChannel = `${this.namespace}:answer`;
     const candidateChannel = `${this.namespace}:candidate`;
@@ -33,7 +40,11 @@ export class WebRTCSignalingBridge {
     kernel.on(offerChannel, (message, context, toolkit) => {
       const payload = normalizePayload(message);
       if (!payload?.description) {
-        toolkit.reply({ type: `${this.namespace}:error`, payload: { reason: 'INVALID_OFFER' } });
+        toolkit.reply(
+          { type: `${this.namespace}:error`, payload: { reason: 'INVALID_OFFER' } } as OutboundMessage<
+            KernelEventMap<Events>
+          >
+        );
         return;
       }
       if (this.options.autoJoinRooms && payload.room) {
@@ -45,7 +56,11 @@ export class WebRTCSignalingBridge {
     kernel.on(answerChannel, (message, context, toolkit) => {
       const payload = normalizePayload(message);
       if (!payload?.description) {
-        toolkit.reply({ type: `${this.namespace}:error`, payload: { reason: 'INVALID_ANSWER' } });
+        toolkit.reply(
+          { type: `${this.namespace}:error`, payload: { reason: 'INVALID_ANSWER' } } as OutboundMessage<
+            KernelEventMap<Events>
+          >
+        );
         return;
       }
       this.forward(payload, context, toolkit, answerChannel);
@@ -54,7 +69,11 @@ export class WebRTCSignalingBridge {
     kernel.on(candidateChannel, (message, context, toolkit) => {
       const payload = normalizePayload(message);
       if (!payload?.candidate) {
-        toolkit.reply({ type: `${this.namespace}:error`, payload: { reason: 'INVALID_CANDIDATE' } });
+        toolkit.reply(
+          { type: `${this.namespace}:error`, payload: { reason: 'INVALID_CANDIDATE' } } as OutboundMessage<
+            KernelEventMap<Events>
+          >
+        );
         return;
       }
       this.forward(payload, context, toolkit, candidateChannel);
@@ -66,7 +85,12 @@ export class WebRTCSignalingBridge {
     });
   }
 
-  private forward(payload: SignalPayload, context: ClientContext, toolkit: HandlerToolkit, channel: string) {
+  private forward<Events extends RealtimeEventMap>(
+    payload: SignalPayload,
+    context: ClientContext,
+    toolkit: HandlerToolkit<Events>,
+    channel: string
+  ) {
     const envelope = {
       type: channel,
       payload: {
@@ -77,7 +101,7 @@ export class WebRTCSignalingBridge {
         candidate: payload.candidate,
         metadata: payload.metadata
       }
-    };
+    } as OutboundMessage<KernelEventMap<Events>>;
 
     if (payload.target) {
       toolkit.send(payload.target, envelope);
@@ -92,7 +116,7 @@ export class WebRTCSignalingBridge {
     toolkit.reply({
       type: `${this.namespace}:error`,
       payload: { reason: 'TARGET_OR_ROOM_REQUIRED' }
-    });
+    } as OutboundMessage<KernelEventMap<Events>>);
     this.logger.error('Signal requires target or room');
   }
 }

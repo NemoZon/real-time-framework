@@ -1,23 +1,27 @@
 import type {
-  TransportClient,
+  ClientContext,
+  ClientMetadata,
+  EventName,
+  HandlerToolkit,
+  KernelEventMap,
   KernelOptions,
+  PresenceSnapshot,
+  RealtimeEventMap,
+  RealtimeEventMessage,
   RealtimeHandler,
   RealtimeMessage,
-  OutboundMessage,
-  ClientContext,
-  HandlerToolkit,
-  ClientMetadata,
-  PresenceSnapshot
+  TransportClient,
+  OutboundMessage
 } from '../types/index.js';
 import { RealtimeHub } from './realtimeHub.js';
 import { BaseTransport } from '../transports/base.js';
 import { Logger } from '../utils/logger.js';
 
-export class RealtimeKernel {
+export class RealtimeKernel<Events extends RealtimeEventMap = RealtimeEventMap> {
   private readonly hub: RealtimeHub;
   private readonly transports: BaseTransport[] = [];
-  private readonly handlers = new Map<string, RealtimeHandler[]>();
-  private readonly wildcardHandlers: RealtimeHandler[] = [];
+  private readonly handlers = new Map<EventName<Events>, RealtimeHandler<Events>[]>();
+  private readonly wildcardHandlers: RealtimeHandler<Events>[] = [];
   private readonly logger: Logger;
   private started = false;
 
@@ -37,14 +41,17 @@ export class RealtimeKernel {
     }
   }
 
-  on(eventType: string, handler: RealtimeHandler) {
+  on<Type extends EventName<Events>>(eventType: Type, handler: RealtimeHandler<Events, Type>): void;
+  on(eventType: '*', handler: RealtimeHandler<Events>): void;
+  on(eventType: string, handler: RealtimeHandler<Events>): void;
+  on(eventType: string, handler: RealtimeHandler<Events>) {
     if (eventType === '*') {
       this.wildcardHandlers.push(handler);
       return;
     }
     const bucket = this.handlers.get(eventType) ?? [];
     bucket.push(handler);
-    this.handlers.set(eventType, bucket);
+    this.handlers.set(eventType as EventName<Events>, bucket);
   }
 
   async start() {
@@ -69,7 +76,7 @@ export class RealtimeKernel {
 
   private async dispatch(message: RealtimeMessage, client: TransportClient) {
     const handlers = [
-      ...(this.handlers.get(message.type) ?? []),
+      ...(this.handlers.get(message.type as EventName<Events>) ?? []),
       ...this.wildcardHandlers
     ];
     if (!handlers.length) {
@@ -83,10 +90,11 @@ export class RealtimeKernel {
     const context = this.hub.snapshot(client.id);
     if (!context) return;
     const toolkit = this.createToolkit(context);
+    const typedMessage = message as RealtimeEventMessage<Events>;
 
     for (const handler of handlers) {
       try {
-        await handler(message, context, toolkit);
+        await handler(typedMessage, context, toolkit);
       } catch (error) {
         this.logger.error('Handler failed', error);
         this.hub.send(client.id, {
@@ -101,22 +109,28 @@ export class RealtimeKernel {
     }
   }
 
-  private createToolkit(context: ClientContext): HandlerToolkit {
+  private createToolkit(context: ClientContext): HandlerToolkit<Events> {
     const { id } = context;
-    const reply = (message: OutboundMessage | string, overrides?: Partial<OutboundMessage>) => {
-      const normalized: OutboundMessage =
+    const reply = (
+      message: OutboundMessage<KernelEventMap<Events>> | string,
+      overrides?: Partial<OutboundMessage<KernelEventMap<Events>>>
+    ) => {
+      const normalized: OutboundMessage<KernelEventMap<Events>> =
         typeof message === 'string'
-          ? { type: 'system:reply', payload: { message } }
+          ? ({ type: 'system:reply', payload: { message } } as OutboundMessage<KernelEventMap<Events>>)
           : message;
       this.hub.send(id, { ...normalized, ...overrides });
     };
 
     return {
       reply,
-      send: (targetId: string, message: OutboundMessage) => {
+      send: (targetId: string, message: OutboundMessage<KernelEventMap<Events>>) => {
         this.hub.send(targetId, message);
       },
-      broadcast: (message: OutboundMessage, filter?: (target: ClientContext) => boolean) => {
+      broadcast: (
+        message: OutboundMessage<KernelEventMap<Events>>,
+        filter?: (target: ClientContext) => boolean
+      ) => {
         if (!filter) {
           this.hub.broadcast(message);
           return;
@@ -132,7 +146,7 @@ export class RealtimeKernel {
         leave: (room: string) => this.hub.leaveRoom(room, id),
         list: () => this.hub.rooms.roomsFor(id),
         broadcast: (
-          message: OutboundMessage,
+          message: OutboundMessage<KernelEventMap<Events>>,
           roomName?: string,
           options?: { exceptSelf?: boolean; except?: string[] }
         ) => {

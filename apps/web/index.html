@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Realtime Framework Playground</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <div class="hero__badge">Démo temps réel</div>
+        <h1>Panneau de démonstration @repo/realtime-core</h1>
+        <p class="hero__lead">
+          Pilotez les connexions WebSocket et P2P backend (PeerMesh), envoyez des événements et regardez comment ils
+          traversent différents transports.
+        </p>
+        <div class="hero__actions">
+          <div class="pill">
+            <div class="dot dot--live"></div>
+            <span>Mises à jour en direct</span>
+          </div>
+          <div class="pill pill--ghost">
+            Endpoints par défaut : ws://localhost:8080/realtime et ws://localhost:8081/realtime
+          </div>
+        </div>
+        <div class="metrics">
+          <div class="metric-card">
+            <div class="metric-card__label">Clients WebSocket</div>
+            <div class="metric-card__value" data-metric="ws-count">0</div>
+            <p class="metric-card__hint">Inclut la connexion principale pour les messages et le presence.</p>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card__label">Nœuds Mesh</div>
+            <div class="metric-card__value" data-metric="mesh-count">0</div>
+            <p class="metric-card__hint">Instances backend reliées via PeerMeshTransport.</p>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card__label">Dernier canal</div>
+            <div class="metric-card__value metric-card__value--alt" data-metric="last-channel">—</div>
+            <p class="metric-card__hint">Type du dernier événement reçu.</p>
+          </div>
+        </div>
+      </header>
+
+      <section class="panel">
+        <div class="panel__header">
+          <div class="chip chip--primary">WebSocket transport</div>
+          <div class="status" data-status="ws">
+            <span class="dot"></span>
+            <span class="status__text">hors ligne</span>
+          </div>
+        </div>
+        <p class="panel__description">
+          Connectez-vous au noyau via WebSocketTransport (par défaut ws://localhost:8080/realtime), envoyez des
+          événements et recevez réponses/ack du RealtimeKernel.
+        </p>
+        <div class="form-grid">
+          <label class="field">
+            <span>Endpoint</span>
+            <input data-field="ws-url" value="ws://localhost:8080/realtime" placeholder="ws://localhost:8080/realtime" />
+          </label>
+          <div class="controls">
+            <button class="btn" data-action="ws-connect">Se connecter</button>
+            <button class="btn btn--ghost" data-action="ws-disconnect">Se déconnecter</button>
+          </div>
+        </div>
+
+        <div class="actions-grid">
+          <div class="action-card">
+            <div class="action-card__header">
+              <div class="chip">Salle</div>
+              <span class="small-hint">chat:join</span>
+            </div>
+            <label class="field">
+              <span>Nom de la salle</span>
+              <input data-field="ws-room" value="lobby" />
+            </label>
+            <button class="btn btn--wide" data-action="ws-join">Rejoindre</button>
+          </div>
+
+          <div class="action-card">
+            <div class="action-card__header">
+              <div class="chip">Presence</div>
+              <span class="small-hint">presence:update</span>
+            </div>
+            <div class="field-row">
+              <label class="field">
+                <span>Nom</span>
+                <input data-field="ws-name" value="UI client" />
+              </label>
+              <label class="field">
+                <span>Statut</span>
+                <input data-field="ws-status-text" value="en ligne" />
+              </label>
+            </div>
+            <button class="btn btn--wide" data-action="ws-presence">Envoyer les métadonnées</button>
+          </div>
+
+          <div class="action-card action-card--wide">
+            <div class="action-card__header">
+              <div class="chip chip--primary">Message</div>
+              <span class="small-hint">chat:message</span>
+            </div>
+            <label class="field">
+              <span>Texte</span>
+              <textarea data-field="ws-message" rows="2" placeholder="Le message arrivera dans la salle choisie...">Salut, realtime !</textarea>
+            </label>
+            <button class="btn btn--wide" data-action="ws-send">Envoyer</button>
+          </div>
+        </div>
+
+        <div class="log" data-log="ws">
+          <div class="log__header">
+            <span>Événements WebSocket</span>
+            <div class="chip chip--ghost">live</div>
+          </div>
+          <div class="log__stream" data-log-stream="ws"></div>
+        </div>
+      </section>
+
+      <section class="panel panel--tinted">
+        <div class="panel__header">
+          <div class="chip chip--primary">P2P / Mesh</div>
+          <div class="pill pill--ghost">Connectez deux noyaux liés par PeerMeshTransport</div>
+        </div>
+        <p class="panel__description">
+          Deux serveurs WebSocket distincts (nœud A et B) avec PeerMeshTransport activé. Les messages partent sur un
+          nœud et apparaissent dans les logs de l'autre si le mesh est correctement configuré.
+        </p>
+
+        <div class="mesh-grid">
+          <div class="mesh-card" data-node="a">
+            <div class="mesh-card__header">
+              <div>
+                <div class="chip">Nœud A</div>
+                <p class="small-hint">Par exemple ws://localhost:8080/realtime</p>
+              </div>
+              <div class="status" data-status="mesh-a">
+                <span class="dot"></span>
+                <span class="status__text">hors ligne</span>
+          </div>
+        </div>
+            <label class="field">
+              <span>Endpoint du nœud A</span>
+              <input data-field="mesh-a-url" value="ws://localhost:8080/realtime" />
+            </label>
+            <div class="controls">
+              <button class="btn" data-action="mesh-a-connect">Se connecter</button>
+              <button class="btn btn--ghost" data-action="mesh-a-disconnect">Se déconnecter</button>
+            </div>
+            <div class="mini-log" data-log-stream="mesh-a"></div>
+          </div>
+
+          <div class="mesh-card" data-node="b">
+            <div class="mesh-card__header">
+              <div>
+                <div class="chip">Nœud B</div>
+                <p class="small-hint">Par exemple ws://localhost:8081/realtime</p>
+              </div>
+              <div class="status" data-status="mesh-b">
+                <span class="dot"></span>
+                <span class="status__text">hors ligne</span>
+          </div>
+            </div>
+            <label class="field">
+              <span>Endpoint du nœud B</span>
+              <input data-field="mesh-b-url" value="ws://localhost:8081/realtime" />
+            </label>
+            <div class="controls">
+              <button class="btn" data-action="mesh-b-connect">Se connecter</button>
+              <button class="btn btn--ghost" data-action="mesh-b-disconnect">Se déconnecter</button>
+            </div>
+            <div class="mini-log" data-log-stream="mesh-b"></div>
+          </div>
+        </div>
+
+        <div class="mesh-actions">
+          <div>
+            <p class="small-hint">Envoyer des événements vers un nœud précis</p>
+            <div class="controls">
+              <button class="btn" data-action="mesh-send-a">Envoyer via le nœud A</button>
+              <button class="btn" data-action="mesh-send-b">Envoyer via le nœud B</button>
+            </div>
+          </div>
+          <div class="field mesh-actions__payload">
+            <span>Charge utile</span>
+            <textarea data-field="mesh-message" rows="2" placeholder='{"type":"chat:message","payload":"hello"}'>
+{"type":"chat:message","payload":{"text":"mesh -> ws","room":"lobby"}}</textarea>
+          </div>
+        </div>
+
+        <div class="log" data-log="mesh">
+          <div class="log__header">
+            <span>Flux transport (nœuds A+B)</span>
+            <div class="chip chip--ghost">mesh</div>
+          </div>
+          <div class="log__stream" data-log-stream="mesh"></div>
+        </div>
+      </section>
+
+      <section class="panel panel--note">
+        <div>
+          <div class="chip chip--primary">Astuces</div>
+          <ul class="tips">
+            <li>Lancez l'exemple du noyau : <code>npm run example:chat --workspace=@repo/realtime-core</code> ou exécutez <code>src/examples/basic.ts</code> avec votre runtime préféré.</li>
+            <li>Pour la démo mesh, démarrez deux instances avec des ports WebSocket et PeerMeshTransport différents, en ajoutant les adresses réciproques dans <code>peers</code>.</li>
+            <li>Une requête contenant <code>ack</code> retournera l'événement système <code>system:ack</code> — il est mis en surbrillance dans les logs.</li>
+            <li>Le champ <code>room</code> montre le fonctionnement des salles : un message envoyé depuis le nœud A apparaît chez les clients connectés au nœud B si le mesh relaye bien les événements.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

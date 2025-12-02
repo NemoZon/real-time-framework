@@ -1,0 +1,13 @@
+{
+  "name": "@repo/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "lint": "echo \"No lint configured for apps/web\"",
+    "check-types": "echo \"No type checking for static web\"",
+    "build": "echo \"Static web app does not require build\""
+  }
+}
