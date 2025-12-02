@@ -6,4 +6,5 @@ export { BaseTransport } from './transports/base.js';
 export { WebSocketTransport, type WebSocketTransportOptions } from './transports/websocket.js';
 export { WebRTCSignalingBridge, type WebRTCSignalingOptions } from './transports/webrtc.js';
 export { PeerMeshTransport, type PeerMeshOptions } from './transports/p2p.js';
+export { ClusterManager, generateMeshPeers, type ClusterOptions } from './cluster/clusterManager.js';
 export * from './types/index.js';
