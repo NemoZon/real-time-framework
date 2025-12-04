@@ -1,38 +1,38 @@
-# Real-time Backend Toolkit
+# Boîte à outils backend temps réel
 
-Мини-фреймворк для быстрой работы с инструментами реального времени (WebSocket, WebRTC signaling, backend-to-backend P2P) в единой backend-среде. Репозиторий построен на Turborepo и включает ядро `@repo/realtime-core`, написанное на TypeScript.
+Mini-framework pour travailler rapidement avec les outils temps réel (WebSocket, WebRTC signaling, P2P backend-à-backend) dans un environnement backend unifié. Le dépôt est construit sur Turborepo et inclut le noyau `@repo/realtime-core`, écrit en TypeScript.
 
-## Состав монорепозитория
+## Composition du monorepo
 
-- `packages/realtime-core` — ядро real-time платформы с менеджером комнат, presence-слоем и адаптерами транспортов.
-- `packages/ui`, `packages/eslint-config`, `packages/typescript-config` — служебные пакеты из стартового шаблона (оставлены без изменений).
+- `packages/realtime-core` — noyau de la plateforme temps réel avec gestionnaire de rooms, couche de présence et adaptateurs de transports.
+- `packages/ui`, `packages/eslint-config`, `packages/typescript-config` — paquets utilitaires du template de départ (laissés tels quels).
 
-## Возможности @repo/realtime-core
+## Capacités de @repo/realtime-core
 
-- ⚡️ **RealtimeKernel** — централизованный диспетчер событий, комнат и присутствия.
-- 🔌 **WebSocketTransport** — собственный WebSocket-сервер без внешних зависимостей.
-- 🔁 **WebRTCSignalingBridge** — готовый маршрутизатор офферов/ответов/ICE-кандидатов.
-- 🤝 **PeerMeshTransport** — лёгкая P2P-сетка между backend-нодами для синхронизации событий.
-- 🧰 Инструменты разработчика: управление комнатами, широковещательные рассылки, presence-стор, middleware через обработчики событий.
+- ⚡️ **RealtimeKernel** — répartiteur centralisé d'événements, de rooms et de présence.
+- 🔌 **WebSocketTransport** — serveur WebSocket maison sans dépendances externes.
+- 🔁 **WebRTCSignalingBridge** — routeur prêt pour offers/answers/candidats ICE.
+- 🤝 **PeerMeshTransport** — maillage P2P léger entre nœuds backend pour synchroniser les événements.
+- 🧰 Outils développeur : gestion des rooms, broadcasts, store de présence, middleware via des handlers d'événements.
 
-## Быстрый старт
+## Démarrage rapide
 
 ```bash
-# установка зависимостей
+# installation des dépendances
 npm install
 
-# проверка типов нового пакета
+# vérification des types du nouveau paquet
 npx turbo run check-types --filter=@repo/realtime-core
 
-# сборка
+# build
 npx turbo run build --filter=@repo/realtime-core
 ```
 
-## Минимальный пример
+## Exemple minimal
 
-`packages/realtime-core/src/examples/basic.ts` демонстрирует запуск ядра c WebSocket-транспортом, P2P-сеткой и включённым WebRTC signaling.
+`packages/realtime-core/src/examples/basic.ts` montre le lancement du noyau avec transport WebSocket, réseau P2P et WebRTC signaling activé.
 
-Фрагмент кода:
+Extrait de code :
 
 ```ts
 const webSocketTransport = new WebSocketTransport({ port: 8080, path: '/realtime' });
@@ -57,10 +57,10 @@ kernel.on('chat:message', (message, context, toolkit) => {
 });
 ```
 
-После сборки можно запустить пример любым рантаймом Node (ts-node/vite-node) или собрать пакет и использовать готовый JS из `dist/`.
+Après build, on peut lancer l'exemple avec n'importe quel runtime Node (ts-node/vite-node) ou construire le paquet et utiliser le JS généré dans `dist/`.
 
-## Дальнейшее развитие
+## Évolutions prévues
 
-- Подключение внешних адаптеров (например, MQTT, WebTransport).
-- Расширение P2P-протокола (подтверждения доставки, фильтрация маршрутов).
-- Генерация типов сообщений для фронтенда.
+- Brancher des adaptateurs externes (par ex. MQTT, WebTransport).
+- Étendre le protocole P2P (accusés de réception, filtrage de routes).
+- Générer les types de messages pour le frontend.
