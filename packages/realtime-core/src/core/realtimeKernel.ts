@@ -1,3 +1,4 @@
+import { BaseTransport } from '../transports/base.js';
 import type {
   ClientContext,
   ClientMetadata,
@@ -5,32 +6,36 @@ import type {
   HandlerToolkit,
   KernelEventMap,
   KernelOptions,
+  OutboundMessage,
   PresenceSnapshot,
   RealtimeEventMap,
   RealtimeEventMessage,
   RealtimeHandler,
   RealtimeMessage,
-  TransportClient,
-  OutboundMessage
+  TransportClient
 } from '../types/index.js';
-import { RealtimeHub } from './realtimeHub.js';
-import { BaseTransport } from '../transports/base.js';
 import { Logger } from '../utils/logger.js';
+import eventTypeBuilder, { EventTemplate } from './eventTypeBuilder.js';
+import { RealtimeHub } from './realtimeHub.js';
 
-export class RealtimeKernel<Events extends RealtimeEventMap = RealtimeEventMap> {
+export class RealtimeKernel<
+  Events extends RealtimeEventMap = RealtimeEventMap,
+  EventTemplates extends readonly EventTemplate[] = ['*']
+> {
   private readonly hub: RealtimeHub;
   private readonly transports: BaseTransport[] = [];
   private readonly handlers = new Map<EventName<Events>, RealtimeHandler<Events>[]>();
   private readonly wildcardHandlers: RealtimeHandler<Events>[] = [];
   private readonly logger: Logger;
+
   private started = false;
 
-  constructor(options: KernelOptions = {}) {
+  constructor(options: KernelOptions<EventTemplates> = {}) {
     this.logger = new Logger('kernel', options.logLevel ?? 'info');
     this.hub = new RealtimeHub(new Logger('hub', options.logLevel ?? 'info'));
     (options.transports ?? []).forEach((transport: BaseTransport) => this.useTransport(transport));
     this.hub.on('message', (payload: { message: RealtimeMessage; client: TransportClient }) =>
-      this.dispatch(payload.message, payload.client)
+      this.dispatch(payload.message, payload.client),
     );
   }
 
@@ -41,14 +46,29 @@ export class RealtimeKernel<Events extends RealtimeEventMap = RealtimeEventMap> 
     }
   }
 
-  on<Type extends EventName<Events>>(eventType: Type, handler: RealtimeHandler<Events, Type>): void;
   on(eventType: '*', handler: RealtimeHandler<Events>): void;
-  on(eventType: string, handler: RealtimeHandler<Events>): void;
-  on(eventType: string, handler: RealtimeHandler<Events>) {
+  on(eventType: EventName<KernelEventMap<Events>>, handler: RealtimeHandler<Events>): void;
+  on(
+    descriptor: { eventTemplate: EventTemplates[number] | '*'; params?: (string | number | boolean)[] },
+    handler: RealtimeHandler<Events>
+  ): void;
+  on(
+    eventOrDescriptor:
+      | { eventTemplate: EventTemplates[number]; params?: (string | number | boolean)[] }
+      | EventName<KernelEventMap<Events>>
+      | '*',
+    handler: RealtimeHandler<Events>
+  ) {
+    const eventType =
+      typeof eventOrDescriptor === 'string'
+        ? eventOrDescriptor
+        : eventTypeBuilder(eventOrDescriptor.eventTemplate, ...(eventOrDescriptor.params ?? []));
+
     if (eventType === '*') {
       this.wildcardHandlers.push(handler);
       return;
     }
+
     const bucket = this.handlers.get(eventType) ?? [];
     bucket.push(handler);
     this.handlers.set(eventType as EventName<Events>, bucket);
@@ -77,7 +97,7 @@ export class RealtimeKernel<Events extends RealtimeEventMap = RealtimeEventMap> 
   private async dispatch(message: RealtimeMessage, client: TransportClient) {
     const handlers = [
       ...(this.handlers.get(message.type as EventName<Events>) ?? []),
-      ...this.wildcardHandlers
+      ...this.wildcardHandlers,
     ];
     if (!handlers.length) {
       this.logger.debug('No handlers for event', message.type);
@@ -99,7 +119,7 @@ export class RealtimeKernel<Events extends RealtimeEventMap = RealtimeEventMap> 
         this.logger.error('Handler failed', error);
         this.hub.send(client.id, {
           type: 'system:error',
-          payload: { message: 'Internal handler error', details: (error as Error).message }
+          payload: { message: 'Internal handler error', details: (error as Error).message },
         });
       }
     }
@@ -113,11 +133,13 @@ export class RealtimeKernel<Events extends RealtimeEventMap = RealtimeEventMap> 
     const { id } = context;
     const reply = (
       message: OutboundMessage<KernelEventMap<Events>> | string,
-      overrides?: Partial<OutboundMessage<KernelEventMap<Events>>>
+      overrides?: Partial<OutboundMessage<KernelEventMap<Events>>>,
     ) => {
       const normalized: OutboundMessage<KernelEventMap<Events>> =
         typeof message === 'string'
-          ? ({ type: 'system:reply', payload: { message } } as OutboundMessage<KernelEventMap<Events>>)
+          ? ({ type: 'system:reply', payload: { message } } as OutboundMessage<
+              KernelEventMap<Events>
+            >)
           : message;
       this.hub.send(id, { ...normalized, ...overrides });
     };
@@ -129,7 +151,7 @@ export class RealtimeKernel<Events extends RealtimeEventMap = RealtimeEventMap> 
       },
       broadcast: (
         message: OutboundMessage<KernelEventMap<Events>>,
-        filter?: (target: ClientContext) => boolean
+        filter?: (target: ClientContext) => boolean,
       ) => {
         if (!filter) {
           this.hub.broadcast(message);
@@ -148,7 +170,7 @@ export class RealtimeKernel<Events extends RealtimeEventMap = RealtimeEventMap> 
         broadcast: (
           message: OutboundMessage<KernelEventMap<Events>>,
           roomName?: string,
-          options?: { exceptSelf?: boolean; except?: string[] }
+          options?: { exceptSelf?: boolean; except?: string[] },
         ) => {
           const targetRoom = roomName ?? message.room;
           if (!targetRoom) return;
@@ -157,14 +179,14 @@ export class RealtimeKernel<Events extends RealtimeEventMap = RealtimeEventMap> 
             except.add(id);
           }
           this.hub.broadcast(message, { room: targetRoom, except: Array.from(except) });
-        }
+        },
       },
       presence: {
         list: () => this.hub.presence.list(),
         get: (clientId: string) => this.hub.presence.get(clientId),
-        update: (metadata: ClientMetadata) => this.hub.presence.update(id, metadata)
+        update: (metadata: ClientMetadata) => this.hub.presence.update(id, metadata),
       },
-      log: (...args: unknown[]) => this.logger.debug(`client:${id}`, ...args)
+      log: (...args: unknown[]) => this.logger.debug(`client:${id}`, ...args),
     };
   }
 }

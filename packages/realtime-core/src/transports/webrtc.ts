@@ -8,6 +8,7 @@ import type {
   RealtimeMessage
 } from '../types/index.js';
 import { Logger } from '../utils/logger.js';
+import type { EventTemplate } from '../core/eventTypeBuilder.js';
 
 export interface WebRTCSignalingOptions {
   namespace?: string;
@@ -31,7 +32,9 @@ export class WebRTCSignalingBridge {
     this.logger = new Logger(`signaling:${this.namespace}`);
   }
 
-  attach<Events extends RealtimeEventMap>(kernel: RealtimeKernel<Events>) {
+  attach<Events extends RealtimeEventMap, Templates extends readonly EventTemplate[] = ['*']>(
+    kernel: RealtimeKernel<Events, Templates>
+  ) {
     const offerChannel = `${this.namespace}:offer`;
     const answerChannel = `${this.namespace}:answer`;
     const candidateChannel = `${this.namespace}:candidate`;

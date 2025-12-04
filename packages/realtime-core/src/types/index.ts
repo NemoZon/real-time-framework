@@ -1,3 +1,4 @@
+import { EventTemplate } from '../core/eventTypeBuilder.js';
 import type { BaseTransport } from '../transports/base.js';
 
 export type RealtimeEventMap = Record<string, unknown>;
@@ -86,7 +87,8 @@ export type RealtimeHandler<
   toolkit: HandlerToolkit<Events>
 ) => Promise<void> | void;
 
-export interface KernelOptions {
+export interface KernelOptions<EventTemplates extends readonly EventTemplate[] = readonly EventTemplate[]> {
+  templates?: EventTemplates;
   transports?: BaseTransport[];
   logLevel?: 'silent' | 'error' | 'info' | 'debug';
 }
